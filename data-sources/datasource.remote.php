@@ -406,17 +406,26 @@
 			$label = Widget::Label();
 
 			$cache_time = isset($settings[self::getClass()]['cache'])
-				? max(1, intval($settings[self::getClass()]['cache']))
-				: 1;
+				? max(0, intval($settings[self::getClass()]['cache']))
+				: 0;
 
 			$input = Widget::Input('fields[' . self::getClass() . '][cache]', (string)$cache_time, 'text', array('size' => '6'));
 			$label->setValue(__('Update cached result every %s minutes', array($input->generate(false))));
 			if(isset($errors[self::getClass()]['cache'])) $fieldset->appendChild(Widget::Error($label, $errors[self::getClass()]['cache']));
 			else $fieldset->appendChild($label);
 
-			// Check for existing Cache objects
-			if(isset($cache_id)) {
-				self::buildCacheInformation($fieldset, $cache, $cache_id);
+			if ($cache_time == 0){
+				$fieldset->appendChild(
+					new XMLElement('p', __('Cache currently disabled, to enable cache use a value greater then `0` minutes'), array('class' => 'help'))
+				);
+			} else {
+				$fieldset->appendChild(
+					new XMLElement('p', __('To disable cache, use `0` minutes'), array('class' => 'help'))
+				);
+				// Check for existing Cache objects
+				if(isset($cache_id)) {
+					self::buildCacheInformation($fieldset, $cache, $cache_id);
+				}
 			}
 
 			$wrapper->appendChild($fieldset);
@@ -428,12 +437,12 @@
 				? (int)$settings[self::getClass()]['timeout']
 				: 6;
 
-			// Check cache value is numeric and greater than 1
+			// Check cache value is numeric and greater than or equal to 0
 			if(!is_numeric($settings[self::getClass()]['cache'])) {
 				$errors[self::getClass()]['cache'] = __('Must be a valid number');
 			}
-			else if($settings[self::getClass()]['cache'] < 1) {
-				$errors[self::getClass()]['cache'] = __('Must be greater than zero');
+			else if($settings[self::getClass()]['cache'] < 0) {
+				$errors[self::getClass()]['cache'] = __('Must be greater than or equal to zero');
 			}
 
 			// Make sure that XPath has been filled out
@@ -515,9 +524,11 @@
 			// immediately to the frontend
 			if(!is_null(self::$url_result)) {
 				$settings['namespaces'] = $namespaces;
-				$cache = new Cacheable(Symphony::Database());
-				$cache_id = self::buildCacheID($settings);
-				$cache->write($cache_id, self::$url_result, $settings['cache']);
+				if ($settings['cache']>0){
+					$cache = new Cacheable(Symphony::Database());
+					$cache_id = self::buildCacheID($settings);
+					$cache->write($cache_id, self::$url_result, $settings['cache']);
+				}
 			}
 
 			return sprintf($template,
@@ -724,7 +735,7 @@
 					}
 
 					else {
-						if($writeToCache) $cache->write($cache_id, $data, $this->dsParamCACHE);
+						if($writeToCache && $this->dsParamCACHE > 0) $cache->write($cache_id, $data, $this->dsParamCACHE);
 
 						$result->setValue(PHP_EOL . str_repeat("\t", 2) . preg_replace('/([\r\n]+)/', "$1\t", $ret));
 						$result->setAttribute('status', ($isCacheValid === true ? 'fresh' : 'stale'));
