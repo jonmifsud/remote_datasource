@@ -599,7 +599,8 @@
 					(!is_array($cachedData) || empty($cachedData)) // There's no cache.
 					|| (time() - $cachedData['creation']) > ($this->dsParamCACHE * 60) // The cache is old.
 				){
-					if(Mutex::acquire($cache_id, $this->dsParamTIMEOUT, TMP)) {
+					//if no cache shouldn't be interested in getting a Mutex it should be always fresh & lock free. - maybe could set this to a different variable
+					if($this->dsParamCACHE == 0 || Mutex::acquire($cache_id, $this->dsParamTIMEOUT, TMP)) {
 						$ch = new Gateway;
 						$ch->init($this->dsParamURL);
 						$ch->setopt('TIMEOUT', $this->dsParamTIMEOUT);
